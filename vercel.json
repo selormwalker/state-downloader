@@ -1,0 +1,11 @@
+{
+  "functions": {
+    "api/info.py":     { "maxDuration": 30 },
+    "api/download.py": { "maxDuration": 30 },
+    "api/cookies.py":  { "maxDuration": 10 }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)",     "destination": "/index.html" }
+  ]
+}

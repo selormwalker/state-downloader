@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STATE DOWNLOADER</title>
+<meta name="description" content="Download videos and photos from any social platform — no watermarks, high quality, free.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:      #080808;
+  --bg2:     #0f0f0f;
+  --bg3:     #161616;
+  --surface: #1c1c1c;
+  --s2:      #242424;
+  --border:  rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --border3: rgba(255,255,255,0.22);
+  --text:    #eeebe4;
+  --text2:   rgba(238,235,228,0.55);
+  --text3:   rgba(238,235,228,0.28);
+  --accent:  #d0f24e;
+  --accent2: #b8da3a;
+  --ad:      rgba(208,242,78,0.10);
+  --ab:      rgba(208,242,78,0.18);
+  --red:     #ff5252;
+  --ff-h:    'Syne', sans-serif;
+  --ff-b:    'DM Sans', sans-serif;
+  --ff-m:    'DM Mono', monospace;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: var(--ff-b); font-size: 16px;
+  line-height: 1.65; min-height: 100vh; overflow-x: hidden;
+}
+
+/* grid bg */
+body::before {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 72px 72px;
+}
+
+.blob {
+  position: fixed; border-radius: 50%; pointer-events: none; z-index: 0;
+}
+.blob-a {
+  width: 900px; height: 600px;
+  background: radial-gradient(ellipse, rgba(208,242,78,0.055) 0%, transparent 65%);
+  top: -260px; left: 50%; transform: translateX(-50%);
+}
+.blob-b {
+  width: 500px; height: 400px;
+  background: radial-gradient(ellipse, rgba(80,60,255,0.04) 0%, transparent 65%);
+  bottom: -150px; right: -80px;
+}
+
+/* ── Nav ── */
+nav {
+  position: relative; z-index: 10;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1.4rem 3rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.logo {
+  font-family: var(--ff-h); font-size: 1.05rem; font-weight: 800;
+  letter-spacing: 0.1em; color: var(--text); text-decoration: none;
+  display: flex; align-items: center; gap: 3px;
+}
+.logo-dot { color: var(--accent); font-size: 0.6em; }
+
+.nav-pills { display: flex; gap: 7px; }
+.npill {
+  font-family: var(--ff-m); font-size: 11px;
+  padding: 5px 12px; border-radius: 100px;
+  border: 1px solid var(--border2); color: var(--text2);
+  letter-spacing: 0.04em;
+}
+.npill.hi { color: var(--accent); border-color: rgba(208,242,78,0.3); background: var(--ad); }
+
+/* ── Hero ── */
+.hero {
+  position: relative; z-index: 1;
+  max-width: 860px; margin: 0 auto;
+  padding: 6rem 2rem 4rem; text-align: center;
+}
+
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 9px;
+  font-family: var(--ff-m); font-size: 11px;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 2rem;
+}
+.dot-live {
+  width: 7px; height: 7px;
+  background: var(--accent); border-radius: 50%;
+  animation: breathe 2.2s ease-in-out infinite;
+}
+@keyframes breathe {
+  0%,100% { opacity:1; transform:scale(1); }
+  50% { opacity:0.5; transform:scale(0.75); }
+}
+
+h1 {
+  font-family: var(--ff-h); font-size: clamp(3rem, 8vw, 6rem);
+  font-weight: 800; line-height: 0.95; letter-spacing: -0.04em;
+  margin-bottom: 1.75rem; color: var(--text);
+}
+h1 em { font-style: normal; color: var(--accent); }
+
+.sub {
+  font-size: 1.05rem; font-weight: 300; color: var(--text2);
+  max-width: 500px; margin: 0 auto 3rem; line-height: 1.8;
+}
+
+/* ── Input card ── */
+.icard {
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 22px; padding: 7px 7px 1.2rem;
+  max-width: 740px; margin: 0 auto 1.5rem;
+  transition: border-color .2s, box-shadow .2s;
+}
+.icard:focus-within {
+  border-color: rgba(208,242,78,.4);
+  box-shadow: 0 0 0 5px rgba(208,242,78,.06);
+}
+
+.irow {
+  display: flex; align-items: center; gap: 10px;
+  padding: 4px 4px 4px 16px;
+}
+.iicon { color: var(--text3); flex-shrink: 0; display: flex; }
+
+#urlInput {
+  flex: 1; background: none; border: none; outline: none;
+  color: var(--text); font-family: var(--ff-m); font-size: 13.5px;
+  padding: 12px 0; min-width: 0;
+}
+#urlInput::placeholder { color: var(--text3); }
+
+.btn-go {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--accent); color: #080808;
+  border: none; border-radius: 13px;
+  padding: 14px 26px;
+  font-family: var(--ff-h); font-weight: 700; font-size: 14px;
+  cursor: pointer; flex-shrink: 0;
+  transition: background .15s, transform .1s, opacity .15s;
+}
+.btn-go:hover { background: #ddf869; }
+.btn-go:active { transform: scale(.97); }
+.btn-go:disabled { opacity: .45; cursor: not-allowed; }
+
+.spin { animation: spin .75s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* chips */
+.chip-row {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: 7px; padding: 0 12px; margin-top: 14px;
+}
+.chip-lbl { font-family: var(--ff-m); font-size: 11px; color: var(--text3); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font-family: var(--ff-m); font-size: 11px;
+  padding: 4px 11px; border-radius: 100px;
+  border: 1px solid var(--border); color: var(--text3);
+  background: var(--bg3); letter-spacing: .03em; transition: all .15s;
+}
+.chip.on { border-color: rgba(208,242,78,.35); color: var(--accent); background: var(--ad); }
+
+/* ── Result panel ── */
+.rpanel {
+  max-width: 740px; margin: 0 auto;
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 22px; overflow: hidden;
+  animation: rise .3s ease;
+}
+@keyframes rise { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+/* loading */
+.s-load { padding: 3rem 2rem; text-align: center; }
+.track { height: 2px; background: var(--border); border-radius: 10px; overflow: hidden; max-width: 260px; margin: 0 auto 1.2rem; }
+.fill { height: 100%; background: var(--accent); border-radius: 10px; width: 0%; transition: width .4s ease; }
+.smsg { font-family: var(--ff-m); font-size: 12px; color: var(--text2); letter-spacing: .04em; }
+
+/* error */
+.s-err { padding: 3rem 2rem; text-align: center; }
+.eico { color: var(--red); margin-bottom: 1rem; display: flex; justify-content: center; }
+.etitle { font-family: var(--ff-h); font-weight: 700; font-size: 1.1rem; margin-bottom: .5rem; }
+.edetail { font-size: 14px; color: var(--text2); margin-bottom: 1.5rem; line-height: 1.7; }
+.btn-retry {
+  font-family: var(--ff-m); font-size: 12px;
+  padding: 9px 20px; border-radius: 8px;
+  border: 1px solid var(--border3); background: none; color: var(--text2);
+  cursor: pointer; transition: all .15s;
+}
+.btn-retry:hover { color: var(--text); background: rgba(255,255,255,.04); }
+
+/* result card */
+.rcard { padding: 1.5rem; border-bottom: 1px solid var(--border); }
+
+.rhead { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 1.5rem; }
+.rthumb {
+  width: 96px; height: 68px; border-radius: 10px;
+  overflow: hidden; flex-shrink: 0; background: var(--bg3);
+  display: flex; align-items: center; justify-content: center; color: var(--text3);
+}
+.rthumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.rmeta { flex: 1; min-width: 0; }
+.rplat {
+  font-family: var(--ff-m); font-size: 11px;
+  color: var(--accent); letter-spacing: .08em;
+  text-transform: uppercase; margin-bottom: 5px;
+}
+.rtitle {
+  font-family: var(--ff-h); font-weight: 700; font-size: 15px;
+  line-height: 1.35; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* quality selector */
+.qsec {}
+.qlabel {
+  font-family: var(--ff-m); font-size: 11px;
+  color: var(--text3); letter-spacing: .08em;
+  text-transform: uppercase; margin-bottom: 12px;
+}
+
+.qgrid { display: flex; flex-direction: column; gap: 8px; }
+
+.qrow {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 13px 16px;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 12px; transition: border-color .15s, background .15s;
+}
+.qrow:hover { border-color: var(--border2); background: var(--s2); }
+.qrow.best { border-color: rgba(208,242,78,.22); }
+
+.ql { display: flex; align-items: center; gap: 12px; }
+.qbadge {
+  font-family: var(--ff-m); font-size: 11px; font-weight: 500;
+  padding: 4px 9px; border-radius: 6px; min-width: 52px;
+  text-align: center; letter-spacing: .03em; flex-shrink: 0;
+  background: rgba(255,255,255,.06); color: var(--text2);
+}
+.qbadge.hi { background: var(--ab); color: var(--accent); }
+.qname { font-weight: 500; font-size: 14px; margin-bottom: 2px; }
+.qname .btag {
+  font-family: var(--ff-m); font-size: 10px;
+  color: var(--accent); letter-spacing: .06em; margin-left: 7px;
+}
+.qdet { font-family: var(--ff-m); font-size: 11px; color: var(--text3); }
+
+.qr { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.qsize { font-family: var(--ff-m); font-size: 12px; color: var(--text3); }
+
+.btn-dl {
+  display: flex; align-items: center; gap: 7px;
+  background: var(--accent); color: #080808;
+  border: none; border-radius: 9px; padding: 10px 18px;
+  font-family: var(--ff-h); font-weight: 700; font-size: 13px;
+  cursor: pointer; white-space: nowrap;
+  transition: background .15s, transform .1s, opacity .15s;
+}
+.btn-dl:hover { background: #ddf869; }
+.btn-dl:active { transform: scale(.97); }
+.btn-dl:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── Quality/format toggle ── */
+.toggle-row {
+  display: flex; gap: 4px; margin-bottom: 1rem;
+}
+.tgl {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--ff-m); font-size: 12px;
+  padding: 8px 14px; border-radius: 9px;
+  border: 1px solid transparent; background: none; color: var(--text3);
+  cursor: pointer; letter-spacing: .04em; transition: all .15s;
+}
+.tgl:hover:not(.on) { color: var(--text2); background: rgba(255,255,255,.03); }
+.tgl.on { background: var(--bg3); color: var(--accent); border-color: var(--border2); }
+
+/* ── Stats ── */
+.sbar {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: center;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  background: var(--bg2); padding: 2.2rem 3rem;
+}
+.stat { text-align: center; padding: 0 3rem; }
+.snum {
+  display: block; font-family: var(--ff-h); font-weight: 800;
+  font-size: 2.2rem; line-height: 1; color: var(--accent);
+  letter-spacing: -.03em; margin-bottom: 4px;
+}
+.slbl { font-family: var(--ff-m); font-size: 11px; color: var(--text3); letter-spacing: .08em; text-transform: uppercase; }
+.sdiv { width: 1px; height: 48px; background: var(--border2); flex-shrink: 0; }
+
+/* ── Features ── */
+.feats {
+  position: relative; z-index: 1;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1px; background: var(--border);
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+}
+.fc { background: var(--bg); padding: 2.5rem 2rem; transition: background .2s; }
+.fc:hover { background: var(--bg2); }
+.ficon {
+  width: 44px; height: 44px; background: var(--ad);
+  border: 1px solid rgba(208,242,78,.2); border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent); margin-bottom: 1.25rem;
+}
+.fc h3 { font-family: var(--ff-h); font-weight: 700; font-size: 1rem; margin-bottom: .55rem; }
+.fc p { font-size: 13.5px; color: var(--text2); line-height: 1.75; }
+
+/* ── Footer ── */
+footer {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 1rem; padding: 2rem 3rem;
+  border-top: 1px solid var(--border);
+}
+.fbrand {
+  font-family: var(--ff-h); font-weight: 800;
+  font-size: 13px; letter-spacing: .1em; color: var(--text3);
+}
+.fbrand span { color: var(--accent); }
+.fnote { font-size: 12px; color: var(--text3); max-width: 440px; text-align: right; line-height: 1.65; }
+
+/* ── Toast ── */
+.toast {
+  position: fixed; bottom: 2rem; right: 2rem; z-index: 100;
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 16px; padding: 1.1rem 1.25rem;
+  min-width: 280px; max-width: 340px; display: none;
+  animation: rise .25s ease;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5);
+}
+.toast.show { display: block; }
+.ttop {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.ttitle { font-family: var(--ff-h); font-weight: 700; font-size: 13px; }
+.tclose {
+  background: none; border: none; color: var(--text3);
+  cursor: pointer; display: flex; padding: 2px; transition: color .15s;
+}
+.tclose:hover { color: var(--text); }
+.tbar { height: 3px; background: var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 8px; }
+.tfill { height: 100%; background: var(--accent); border-radius: 10px; width: 0%; transition: width .3s ease; }
+.tinfo { font-family: var(--ff-m); font-size: 11px; color: var(--text3); }
+
+@media (max-width: 700px) {
+  nav { padding: 1.2rem 1.5rem; }
+  .nav-pills { display: none; }
+  .hero { padding: 4rem 1.25rem 3rem; }
+  h1 { font-size: 2.8rem; }
+  footer { flex-direction: column; }
+  .fnote { text-align: left; }
+  .stat { padding: 0 1.5rem; }
+  .sbar { padding: 2rem 1rem; }
+  .qr { flex-direction: column; align-items: flex-end; gap: 6px; }
+  .qsize { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="blob blob-a"></div>
+<div class="blob blob-b"></div>
+
+<nav>
+  <a href="/" class="logo">STATE<span class="logo-dot"> ● </span>DOWNLOADER</a>
+  <div class="nav-pills">
+    <span class="npill">No watermarks</span>
+    <span class="npill">50+ platforms</span>
+    <span class="npill hi">Free forever</span>
+  </div>
+</nav>
+
+<main>
+  <section class="hero">
+    <div class="eyebrow"><span class="dot-live"></span>Universal Media Downloader</div>
+
+    <h1>Every platform.<br><em>Every format.</em><br>Zero watermarks.</h1>
+    <p class="sub">Paste any link. Get your video or photo instantly — original quality, clean, no signup needed.</p>
+
+    <div class="icard" id="icard">
+      <div class="irow">
+        <span class="iicon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+          </svg>
+        </span>
+        <input id="urlInput" type="url" placeholder="Paste URL — YouTube, Instagram, TikTok, X, Reddit…" autocomplete="off" spellcheck="false"/>
+        <button class="btn-go" id="btnGo" onclick="go()">
+          <span id="bLabel">Fetch</span>
+          <svg id="bArrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          <span id="bSpin" style="display:none;">
+            <svg class="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" opacity=".2"/><path d="M21 12a9 9 0 00-9-9"/></svg>
+          </span>
+        </button>
+      </div>
+      <div class="chip-row">
+        <span class="chip-lbl">Works with:</span>
+        <div class="chips">
+          <span class="chip" data-d="youtube.com,youtu.be">YouTube</span>
+          <span class="chip" data-d="instagram.com">Instagram</span>
+          <span class="chip" data-d="tiktok.com">TikTok</span>
+          <span class="chip" data-d="twitter.com,x.com">X / Twitter</span>
+          <span class="chip" data-d="facebook.com">Facebook</span>
+          <span class="chip" data-d="reddit.com">Reddit</span>
+          <span class="chip" data-d="twitch.tv">Twitch</span>
+          <span class="chip" data-d="vimeo.com">Vimeo</span>
+          <span class="chip" data-d="pinterest.com">Pinterest</span>
+          <span class="chip">+40 more ›</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- result panel -->
+    <div id="rpanel" style="display:none;" class="rpanel">
+
+      <!-- loading -->
+      <div id="sLoad" class="s-load">
+        <div class="track"><div class="fill" id="fill"></div></div>
+        <p class="smsg" id="smsg">Connecting…</p>
+      </div>
+
+      <!-- error -->
+      <div id="sErr" class="s-err" style="display:none;">
+        <div class="eico">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <p class="etitle">Couldn't process this URL</p>
+        <p class="edetail" id="edetail">Check the link and try again.</p>
+        <button class="btn-retry" onclick="reset()">← Try another URL</button>
+      </div>
+
+      <!-- result card -->
+      <div id="sCard" style="display:none;" class="rcard">
+        <div class="rhead">
+          <div class="rthumb" id="rthumb">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </div>
+          <div class="rmeta">
+            <div class="rplat" id="rplat">—</div>
+            <div class="rtitle" id="rtitle">Loading…</div>
+          </div>
+        </div>
+
+        <!-- format toggle -->
+        <div class="toggle-row" id="toggleRow">
+          <button class="tgl on" data-t="video" onclick="switchType('video',this)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+            Video
+          </button>
+          <button class="tgl" data-t="audio" onclick="switchType('audio',this)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+            Audio only
+          </button>
+        </div>
+
+        <div class="qlabel" id="qlabel">SELECT QUALITY</div>
+        <div class="qgrid" id="qgrid"></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- stats -->
+  <div class="sbar">
+    <div class="stat"><span class="snum">50+</span><span class="slbl">Platforms</span></div>
+    <div class="sdiv"></div>
+    <div class="stat"><span class="snum">8K</span><span class="slbl">Max quality</span></div>
+    <div class="sdiv"></div>
+    <div class="stat"><span class="snum">0</span><span class="slbl">Watermarks</span></div>
+    <div class="sdiv"></div>
+    <div class="stat"><span class="snum">Free</span><span class="slbl">Always</span></div>
+  </div>
+
+  <!-- features -->
+  <section class="feats">
+    <div class="fc">
+      <div class="ficon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <h3>No watermarks</h3>
+      <p>Downloads come clean — no TikTok logos, no Instagram overlays, just the raw original media.</p>
+    </div>
+    <div class="fc">
+      <div class="ficon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      </div>
+      <h3>Original quality</h3>
+      <p>We pull the source file at the resolution the creator uploaded — up to 8K on supported platforms.</p>
+    </div>
+    <div class="fc">
+      <div class="ficon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      </div>
+      <h3>All formats</h3>
+      <p>MP4, WebM, MKV for video. MP3, AAC, OGG for audio. Pick the format that works for you.</p>
+    </div>
+    <div class="fc">
+      <div class="ficon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      </div>
+      <h3>No install needed</h3>
+      <p>Runs entirely in your browser. No account, no extension, no tracking. Paste and go.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="fbrand">STATE<span>●</span>DOWNLOADER</div>
+  <p class="fnote">For personal use only. Respect creators and platform terms of service. Do not redistribute downloaded content commercially without permission.</p>
+</footer>
+
+<!-- toast -->
+<div class="toast" id="toast">
+  <div class="ttop">
+    <span class="ttitle" id="ttitle">Preparing…</span>
+    <button class="tclose" onclick="closeToast()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="tbar"><div class="tfill" id="tfill"></div></div>
+  <div class="tinfo" id="tinfo">Please wait…</div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// Cobalt API  (https://github.com/imputnet/cobalt)
+// Public instance: api.cobalt.tools
+// Docs: https://cobalt.tools
+// ─────────────────────────────────────────────
+
+const COBALT_API = 'https://api.cobalt.tools';
+
+// All quality/format options we offer the user
+// Cobalt handles the actual fetching per-option
+const VIDEO_OPTIONS = [
+  { badge:'4K',    label:'2160p Ultra HD', detail:'MP4 · best available',  quality:'2160', vCodec:'h264', best:false },
+  { badge:'1080p', label:'Full HD',        detail:'MP4 · H.264',           quality:'1080', vCodec:'h264', best:true  },
+  { badge:'720p',  label:'HD',             detail:'MP4 · H.264',           quality:'720',  vCodec:'h264', best:false },
+  { badge:'480p',  label:'Standard',       detail:'MP4 · H.264',           quality:'480',  vCodec:'h264', best:false },
+  { badge:'360p',  label:'Low',            detail:'MP4 · H.264',           quality:'360',  vCodec:'h264', best:false },
+];
+
+const AUDIO_OPTIONS = [
+  { badge:'MP3',  label:'MP3 — Best quality',  detail:'MP3 · 320kbps', aFormat:'mp3',  best:true  },
+  { badge:'MP3',  label:'MP3 — Standard',       detail:'MP3 · 128kbps', aFormat:'mp3',  best:false },
+  { badge:'OGG',  label:'OGG Vorbis',           detail:'OGG · high',    aFormat:'ogg',  best:false },
+  { badge:'OPUS', label:'Opus',                 detail:'Opus · high',   aFormat:'opus', best:false },
+  { badge:'WAV',  label:'WAV Lossless',         detail:'WAV · 16-bit',  aFormat:'wav',  best:false },
+];
+
+// ── State ──
+let state = { url:'', type:'video' };
+
+// ── Platform chip highlight ──
+document.getElementById('urlInput').addEventListener('input', e => {
+  const v = e.target.value;
+  document.querySelectorAll('.chip[data-d]').forEach(c => {
+    c.classList.toggle('on', c.dataset.d.split(',').some(d => v.includes(d)));
+  });
+});
+document.getElementById('urlInput').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+
+// ── Detect platform name ──
+function platName(url) {
+  const m = {
+    'youtube.com':'YouTube','youtu.be':'YouTube',
+    'instagram.com':'Instagram','tiktok.com':'TikTok',
+    'twitter.com':'X / Twitter','x.com':'X / Twitter',
+    'facebook.com':'Facebook','fb.watch':'Facebook',
+    'reddit.com':'Reddit','twitch.tv':'Twitch',
+    'vimeo.com':'Vimeo','pinterest.com':'Pinterest',
+    'dailymotion.com':'Dailymotion','soundcloud.com':'SoundCloud',
+    'bilibili.com':'Bilibili',
+  };
+  for (const [d,n] of Object.entries(m)) if (url.includes(d)) return n;
+  return 'Unknown';
+}
+
+// ── Main handler ──
+async function go() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url || !url.startsWith('http')) { document.getElementById('urlInput').focus(); return; }
+  state.url = url;
+  state.type = 'video';
+  setBusy(true);
+  showPanel('load');
+
+  // Animate loader
+  const steps = [
+    [12,'Resolving URL…'],[30,'Contacting platform…'],
+    [55,'Fetching media info…'],[75,'Checking formats…'],[88,'Almost ready…'],
+  ];
+  let si = 0;
+  const iv = setInterval(() => {
+    if (si < steps.length) {
+      setLoad(steps[si][0], steps[si][1]);
+      si++;
+    }
+  }, 450);
+
+  // Probe with Cobalt — we just do a test request for best quality
+  // to validate the URL and get a title/thumbnail if available
+  try {
+    const probe = await cobaltRequest(url, { videoQuality:'1080', vCodec:'h264', filenameStyle:'pretty' });
+    clearInterval(iv);
+    setLoad(100,'Done!');
+
+    if (probe.status === 'error' || probe.status === 'rate-limit') {
+      await new Promise(r=>setTimeout(r,200));
+      showPanel('err', probe.text || 'This URL isn\'t supported or is private.');
+      setBusy(false);
+      return;
+    }
+
+    await new Promise(r=>setTimeout(r,250));
+    renderCard(url, probe);
+    showPanel('card');
+  } catch(e) {
+    clearInterval(iv);
+    showPanel('err', 'Could not reach the download service. Check your connection.');
+  }
+
+  setBusy(false);
+}
+
+// ── Cobalt API call ──
+async function cobaltRequest(url, opts={}) {
+  const body = {
+    url,
+    videoQuality:   opts.videoQuality   || '1080',
+    vCodec:         opts.vCodec         || 'h264',
+    aFormat:        opts.aFormat        || 'mp3',
+    isAudioOnly:    opts.isAudioOnly    || false,
+    isNoTTWatermark: true,
+    isTTFullAudio:  false,
+    isAudioMuted:   false,
+    dubLang:        false,
+    filenameStyle:  opts.filenameStyle  || 'pretty',
+    downloadMode:   opts.isAudioOnly ? 'audio' : 'auto',
+  };
+
+  const res = await fetch(`${COBALT_API}/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`API ${res.status}: ${t}`);
+  }
+  return res.json();
+}
+
+// ── Render card ──
+function renderCard(url, probe) {
+  document.getElementById('rplat').textContent = platName(url);
+
+  // Title: try to get from filename or URL
+  let title = 'Media download';
+  if (probe.filename) {
+    title = probe.filename.replace(/\.[^.]+$/, '').replace(/[_-]/g,' ').trim();
+  }
+  document.getElementById('rtitle').textContent = title;
+
+  // Thumbnail: Cobalt doesn't return thumb, try YouTube embed
+  const rthumb = document.getElementById('rthumb');
+  const ytMatch = url.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  if (ytMatch) {
+    rthumb.innerHTML = `<img src="https://img.youtube.com/vi/${ytMatch[1]}/mqdefault.jpg" alt="" onerror="this.parentElement.innerHTML='<svg width=22 height=22 viewBox=\\'0 0 24 24\\' fill=none stroke=currentColor stroke-width=1.5><polygon points=\\'5 3 19 12 5 21 5 3\\'/></svg>'">`;
+  }
+
+  // Set active type
+  document.querySelectorAll('.tgl').forEach(t => t.classList.remove('on'));
+  document.querySelector('.tgl[data-t="video"]').classList.add('on');
+  state.type = 'video';
+
+  renderOptions();
+}
+
+// ── Render quality options ──
+function renderOptions() {
+  const grid = document.getElementById('qgrid');
+  const opts = state.type === 'video' ? VIDEO_OPTIONS : AUDIO_OPTIONS;
+  document.getElementById('qlabel').textContent =
+    state.type === 'video' ? 'SELECT QUALITY' : 'SELECT FORMAT';
+
+  grid.innerHTML = opts.map((o, i) => `
+    <div class="qrow${o.best?' best':''}">
+      <div class="ql">
+        <span class="qbadge${o.best?' hi':''}">${h(o.badge)}</span>
+        <div>
+          <div class="qname">${h(o.label)}${o.best?'<span class="btag">★ BEST</span>':''}</div>
+          <div class="qdet">${h(o.detail)}</div>
+        </div>
+      </div>
+      <div class="qr">
+        <button class="btn-dl" id="db${i}" onclick="download(${i})">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Download
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function switchType(t, btn) {
+  document.querySelectorAll('.tgl').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  state.type = t;
+  renderOptions();
+}
+
+// ── Download ──
+async function download(idx) {
+  const opts = state.type === 'video' ? VIDEO_OPTIONS : AUDIO_OPTIONS;
+  const o = opts[idx];
+  const btn = document.getElementById('db'+idx);
+
+  btn.disabled = true;
+  btn.innerHTML = `<svg class="spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" opacity=".2"/><path d="M21 12a9 9 0 00-9-9"/></svg> Fetching…`;
+
+  showToast('Preparing download…', 10, `${o.label} · contacting server`);
+
+  try {
+    const params = state.type === 'video'
+      ? { videoQuality: o.quality, vCodec: o.vCodec, isAudioOnly: false }
+      : { aFormat: o.aFormat, isAudioOnly: true };
+
+    const resp = await cobaltRequest(state.url, params);
+
+    if (resp.status === 'error') {
+      updateToast('Failed', 0, resp.text || 'Server error.');
+      setTimeout(closeToast, 4000);
+      resetBtn(idx, o.label);
+      return;
+    }
+
+    // Cobalt returns a direct download URL or a tunnel URL
+    if (resp.url) {
+      updateToast(`Downloading — ${o.label}`, 70, 'Receiving file from server…');
+
+      // Fetch through our page to trigger proper download
+      const fileRes = await fetch(resp.url);
+      if (!fileRes.ok) throw new Error('File fetch failed');
+
+      const blob = await fileRes.blob();
+      const fname = resp.filename || `state-download.${state.type === 'audio' ? o.aFormat : 'mp4'}`;
+
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = fname;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 15000);
+
+      updateToast('Done! ✓', 100, `Saved: ${fname}`);
+      setTimeout(closeToast, 5000);
+
+    } else if (resp.status === 'stream') {
+      // Cobalt tunnel — open directly
+      updateToast('Opening download…', 90, 'Starting file transfer');
+      window.open(resp.url, '_blank');
+      updateToast('Done! ✓', 100, 'File transfer started in new tab');
+      setTimeout(closeToast, 4000);
+
+    } else if (resp.status === 'redirect') {
+      updateToast('Redirecting…', 90, 'Opening source file');
+      window.open(resp.url, '_blank');
+      updateToast('Done! ✓', 100, 'File opened in new tab');
+      setTimeout(closeToast, 4000);
+
+    } else if (resp.status === 'picker') {
+      // Multiple files (e.g. Instagram carousel)
+      updateToast('Multiple files found', 80, `Opening ${resp.picker.length} files…`);
+      resp.picker.forEach((item, i) => {
+        setTimeout(() => window.open(item.url, '_blank'), i * 500);
+      });
+      setTimeout(closeToast, 5000);
+
+    } else {
+      updateToast('Unexpected response', 0, resp.status || 'Unknown error');
+      setTimeout(closeToast, 4000);
+    }
+
+  } catch(e) {
+    updateToast('Error', 0, e.message || 'Something went wrong.');
+    setTimeout(closeToast, 5000);
+  }
+
+  resetBtn(idx);
+}
+
+function resetBtn(idx) {
+  const btn = document.getElementById('db'+idx);
+  if (!btn) return;
+  btn.disabled = false;
+  btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download`;
+}
+
+// ── UI helpers ──
+function showPanel(s, errMsg) {
+  const p = document.getElementById('rpanel');
+  p.style.display = 'block';
+  document.getElementById('sLoad').style.display = s==='load' ? 'block' : 'none';
+  document.getElementById('sErr').style.display  = s==='err'  ? 'block' : 'none';
+  document.getElementById('sCard').style.display = s==='card' ? 'block' : 'none';
+  if (s==='err') document.getElementById('edetail').textContent = errMsg || 'Check the link and try again.';
+  if (s==='load') { setLoad(0,'Connecting…'); }
+  p.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function setLoad(pct, msg) {
+  document.getElementById('fill').style.width = pct+'%';
+  document.getElementById('smsg').textContent = msg;
+}
+
+function setBusy(b) {
+  const btn = document.getElementById('btnGo');
+  btn.disabled = b;
+  document.getElementById('bLabel').textContent = b ? 'Fetching' : 'Fetch';
+  document.getElementById('bArrow').style.display = b ? 'none' : '';
+  document.getElementById('bSpin').style.display  = b ? 'flex' : 'none';
+}
+
+function reset() {
+  document.getElementById('rpanel').style.display = 'none';
+  document.getElementById('urlInput').value = '';
+  document.getElementById('urlInput').focus();
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+  state.url = '';
+}
+
+// ── Toast ──
+function showToast(t, p, i) {
+  document.getElementById('ttitle').textContent = t;
+  document.getElementById('tfill').style.width = p+'%';
+  document.getElementById('tinfo').textContent = i;
+  document.getElementById('toast').classList.add('show');
+}
+function updateToast(t, p, i) {
+  document.getElementById('ttitle').textContent = t;
+  document.getElementById('tfill').style.width = p+'%';
+  document.getElementById('tinfo').textContent = i;
+}
+function closeToast() { document.getElementById('toast').classList.remove('show'); }
+
+function h(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

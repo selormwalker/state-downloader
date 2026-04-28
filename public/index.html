@@ -3,9 +3,55 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>STATE DOWNLOADER</title>
-<meta name="description" content="Download videos and photos from Instagram, TikTok, YouTube and 50+ platforms. No watermarks, completely free.">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23080808'/%3E%3Ccircle cx='32' cy='32' r='16' fill='none' stroke='%23d0f24e' stroke-width='5'/%3E%3Ccircle cx='32' cy='32' r='6' fill='%23d0f24e'/%3E%3C/svg%3E">
+<title>STATE DOWNLOADER PRO</title>
+<meta name="description" content="Download high-quality videos and music from Instagram, TikTok, YouTube and 1000+ sites. Stream-through performance.">
+
+<!-- Favicon & PWA Icons -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23080808'/%3E%3Ccircle cx='32' cy='32' r='18' fill='none' stroke='%23d0f24e' stroke-width='6'/%3E%3Ccircle cx='32' cy='32' r='7' fill='%23d0f24e'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23080808'/%3E%3Ccircle cx='32' cy='32' r='18' fill='none' stroke='%23d0f24e' stroke-width='6'/%3E%3Ccircle cx='32' cy='32' r='7' fill='%23d0f24e'/%3E%3C/svg%3E">
+
+<!-- PWA Meta -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="StateDL">
+
+<script>
+// PWA Manifest
+(function() {
+  const manifest = {
+    name: "State Downloader Pro",
+    short_name: "StateDL",
+    start_url: "/",
+    display: "standalone",
+    background_color: "#080808",
+    theme_color: "#d0f24e",
+    icons: [{
+      src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23080808'/%3E%3Ccircle cx='32' cy='32' r='18' fill='none' stroke='%23d0f24e' stroke-width='6'/%3E%3Ccircle cx='32' cy='32' r='7' fill='%23d0f24e'/%3E%3C/svg%3E",
+      sizes: "512x512",
+      type: "image/svg+xml",
+      purpose: "any maskable"
+    }],
+    share_target: {
+      action: "/",
+      method: "GET",
+      params: { title: "title", text: "text", url: "url" }
+    }
+  };
+  const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+  const link = document.createElement('link');
+  link.rel = 'manifest';
+  link.href = URL.createObjectURL(blob);
+  document.head.appendChild(link);
+})();
+
+// Service Worker
+if ('serviceWorker' in navigator) {
+  const sw = "self.addEventListener('fetch', (e) => {});";
+  const blob = new Blob([sw], {type: 'text/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob));
+}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>

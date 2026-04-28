@@ -2,7 +2,7 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 import yt_dlp
-from urllib.parse import urlparse, parse_qs
+import shutil
 
 COOKIE_PATH = "/tmp/ig_cookies.txt"
 
@@ -15,40 +15,28 @@ PLATFORM_MAP = {
     "vimeo.com": "Vimeo", "pinterest.com": "Pinterest",
     "dailymotion.com": "Dailymotion", "soundcloud.com": "SoundCloud",
     "bilibili.com": "Bilibili", "snapchat.com": "Snapchat",
-    "linkedin.com": "LinkedIn",
+    "linkedin.com": "LinkedIn", "threads.net": "Threads",
 }
 
 def detect_platform(url):
     for domain, name in PLATFORM_MAP.items():
         if domain in url:
             return name
-    return "Unknown"
+    return "Social Media"
 
 def fmt_duration(secs):
-    if not secs:
-        return None
+    if not secs: return None
     secs = int(secs)
     h, r = divmod(secs, 3600)
     m, s = divmod(r, 60)
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
 
 def fmt_size(b):
-    if not b:
-        return None
+    if not b: return None
     for unit in ["B","KB","MB","GB"]:
-        if b < 1024:
-            return f"{b:.1f} {unit}"
+        if b < 1024: return f"{b:.1f} {unit}"
         b /= 1024
     return f"{b:.1f} GB"
-
-def fmt_views(n):
-    if not n:
-        return None
-    if n >= 1_000_000:
-        return f"{n/1_000_000:.1f}M views"
-    if n >= 1_000:
-        return f"{n/1_000:.0f}K views"
-    return f"{n} views"
 
 class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
@@ -58,14 +46,15 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         length = int(self.headers.get("Content-Length", 0))
-        body = json.loads(self.rfile.read(length) or b"{}")
+        try:
+            body = json.loads(self.rfile.read(length) or b"{}")
+        except:
+            body = {}
+        
         url = (body.get("url") or "").strip()
-
         if not url or not url.startswith("http"):
             self._json(400, {"ok": False, "error": "A valid URL is required."})
             return
-
-        is_instagram = "instagram.com" in url
 
         ydl_opts = {
             "quiet": True,
@@ -77,144 +66,80 @@ class handler(BaseHTTPRequestHandler):
             },
         }
 
-        # Attach cookies if available
         if os.path.exists(COOKIE_PATH):
             ydl_opts["cookiefile"] = COOKIE_PATH
-        elif is_instagram:
-            self._json(401, {
-                "ok": False,
-                "error": "instagram_needs_cookies",
-                "message": "Instagram requires login cookies to download. Click 'Add Instagram Cookies' to set them up."
-            })
-            return
 
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
 
-            # ── Build video formats ──
+            # ── Intelligent Format Processing ──
             video_formats = []
             seen_heights = set()
             all_fmts = info.get("formats") or []
 
-            for f in sorted(all_fmts, key=lambda x: (x.get("height") or 0), reverse=True):
-                if f.get("vcodec") in (None, "none"):
-                    continue
-                height = f.get("height")
-                if not height or height in seen_heights:
-                    continue
-                seen_heights.add(height)
+            # Filter for video formats and sort by height
+            v_fmts = [f for f in all_fmts if f.get("vcodec") != "none" and f.get("height")]
+            v_fmts.sort(key=lambda x: (x.get("height") or 0, x.get("tbr") or 0), reverse=True)
+
+            for f in v_fmts:
+                h = f.get("height")
+                if not h or h in seen_heights: continue
+                seen_heights.add(h)
 
                 ext = f.get("ext") or "mp4"
                 fps = f.get("fps")
-                has_audio = f.get("acodec") not in (None, "none")
-                filesize = f.get("filesize") or f.get("filesize_approx")
+                size = f.get("filesize") or f.get("filesize_approx")
+                
+                label = f"{h}p"
+                if h >= 2160: qname = "4K Ultra HD"
+                elif h >= 1440: qname = "2K QHD"
+                elif h >= 1080: qname = "Full HD"
+                elif h >= 720: qname = "HD"
+                else: qname = "Standard"
 
-                if height >= 2160:   qlabel, qname = f"{height}p", "4K Ultra HD"
-                elif height >= 1440: qlabel, qname = f"{height}p", "2K QHD"
-                elif height >= 1080: qlabel, qname = f"{height}p", "Full HD"
-                elif height >= 720:  qlabel, qname = f"{height}p", "HD"
-                elif height >= 480:  qlabel, qname = f"{height}p", "Standard"
-                else:                qlabel, qname = f"{height}p", "Low quality"
-
-                detail_parts = [ext.upper()]
-                if fps:
-                    detail_parts.append(f"{int(fps)}fps")
-                if not has_audio:
-                    detail_parts.append("no audio — auto-merged")
+                detail = f"{ext.upper()}"
+                if fps and fps > 30: detail += f" {int(fps)}fps"
+                if f.get("vcodec").startswith("av01"): detail += " AV1"
 
                 video_formats.append({
                     "format_id": f["format_id"],
-                    "badge": qlabel,
+                    "badge": label,
                     "label": qname,
-                    "detail": " · ".join(detail_parts),
-                    "size": fmt_size(filesize) or "~auto",
-                    "ext": ext,
-                    "height": height,
-                    "has_audio": has_audio,
+                    "detail": detail,
+                    "size": fmt_size(size) or "Stream",
+                    "ext": "mp4", # Preferred container
+                    "best": len(video_formats) == 0
                 })
+                if len(video_formats) >= 6: break
 
-            # cap at 6
-            video_formats = video_formats[:6]
-            if video_formats:
-                video_formats[0]["best"] = True
-
-            # ── Build audio formats ──
-            audio_fmts_raw = [
-                f for f in all_fmts
-                if f.get("vcodec") in (None, "none") and f.get("acodec") not in (None, "none")
-            ]
-            audio_fmts_raw.sort(key=lambda x: x.get("abr") or 0, reverse=True)
-
-            audio_formats = []
-            seen_abr = set()
-            for f in audio_fmts_raw:
-                abr = f.get("abr") or 0
-                ext = f.get("ext") or "m4a"
-                bucket = round(abr / 32) * 32
-                if bucket in seen_abr:
-                    continue
-                seen_abr.add(bucket)
-
-                badge = {"m4a": "AAC", "aac": "AAC", "opus": "Opus", "ogg": "OGG", "mp3": "MP3"}.get(ext, ext.upper())
-                abr_str = f"{int(abr)}kbps" if abr else ""
-                filesize = f.get("filesize") or f.get("filesize_approx")
-
-                audio_formats.append({
-                    "format_id": f["format_id"],
-                    "badge": badge,
-                    "label": "Audio track",
-                    "detail": f"{ext.upper()} · {abr_str}".strip(" · "),
-                    "size": fmt_size(filesize) or "~auto",
-                    "ext": ext,
-                })
-
-            # Always offer MP3 conversion at top
-            audio_formats.insert(0, {
+            # ── Audio Processing ──
+            audio_formats = [{
                 "format_id": "bestaudio/best",
                 "badge": "MP3",
-                "label": "MP3 (best quality)",
-                "detail": "MP3 · 320kbps · converted",
-                "size": "~auto",
+                "label": "MP3 Audio",
+                "detail": "High Quality 320kbps",
+                "size": "Auto",
                 "ext": "mp3",
                 "convert_mp3": True,
-                "best": True,
-            })
-            audio_formats = audio_formats[:5]
+                "best": True
+            }]
 
-            result = {
+            res = {
                 "ok": True,
                 "platform": detect_platform(url),
-                "title": info.get("title") or "Media download",
+                "title": info.get("title") or "Untitled Media",
                 "thumbnail": info.get("thumbnail"),
                 "duration": fmt_duration(info.get("duration")),
-                "views": fmt_views(info.get("view_count")),
-                "uploader": info.get("uploader") or info.get("channel"),
+                "uploader": info.get("uploader") or info.get("channel") or "Unknown",
                 "video_formats": video_formats,
                 "audio_formats": audio_formats,
             }
-            self._json(200, result)
+            self._json(200, res)
 
-        except yt_dlp.utils.DownloadError as e:
-            err = str(e)
-            if "Unsupported URL" in err:
-                msg = "This URL isn't supported. Try YouTube, Instagram, TikTok, X, Reddit, etc."
-            elif "private" in err.lower() or "login" in err.lower() or "checkpoint" in err.lower():
-                if is_instagram:
-                    self._json(401, {
-                        "ok": False,
-                        "error": "instagram_needs_cookies",
-                        "message": "Instagram blocked this request. Your cookies may have expired — please update them."
-                    })
-                    return
-                msg = "This content is private or requires a login."
-            elif "rate" in err.lower() or "too many" in err.lower():
-                msg = "Rate limited by the platform. Please try again in a moment."
-            else:
-                msg = "Could not fetch this media. Make sure the post is public and the URL is correct."
-            self._json(422, {"ok": False, "error": msg})
         except Exception as e:
-            self._json(500, {"ok": False, "error": f"Server error: {str(e)[:200]}"})
+            err_msg = str(e).split('\n')[0]
+            self._json(422, {"ok": False, "error": f"Failed to fetch: {err_msg}"})
 
     def _json(self, code, data):
         body = json.dumps(data).encode()

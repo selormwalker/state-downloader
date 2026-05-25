@@ -11,7 +11,8 @@ def get_model():
         print("Error: GEMINI_API_KEY environment variable not found.")
         exit(1)
     genai.configure(api_key=api_key)
-    return genai.GenerativeModel('gemini-1.5-flash')
+    # Using a more robust model name
+    return genai.GenerativeModel('gemini-1.5-flash-latest')
 
 def analyze_and_fix(model, file_path):
     try:
@@ -43,8 +44,12 @@ def analyze_and_fix(model, file_path):
     - Provide ONLY the file content.
     """
 
-    response = model.generate_content(prompt)
-    new_content = response.text.strip()
+    try:
+        response = model.generate_content(prompt)
+        new_content = response.text.strip()
+    except Exception as e:
+        print(f"AI generation failed for {file_path}: {e}")
+        return None
 
     if "NO_CHANGES_NEEDED" in new_content:
         return None
@@ -67,7 +72,9 @@ def main():
             if any(part.startswith('.') for part in path.parts) or \
                'node_modules' in path.parts or \
                'venv' in path.parts or \
-               '__pycache__' in path.parts:
+               '__pycache__' in path.parts or \
+               'dist' in path.parts or \
+               'build' in path.parts:
                 continue
 
             print(f"Analyzing {path}...")

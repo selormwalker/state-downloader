@@ -1,0 +1,2 @@
+[tool.vercel]
+entrypoints = ["api/cookies.py", "api/download.py", "api/info.py"]

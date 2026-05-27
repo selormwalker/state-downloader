@@ -1,0 +1,9 @@
+[project]
+name = "state-downloader"
+version = "0.1.0"
+dependencies = [
+    "yt-dlp"
+]
+
+[tool.vercel]
+entrypoint = "api.info:handler"

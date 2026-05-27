@@ -1,4 +1,2 @@
 [tool.vercel]
-entrypoint = "api/info.py"
-# Also expose the other functions
-entrypoints = ["api/cookies.py", "api/download.py", "api/info.py"]
+entrypoint = "api.info:handler"

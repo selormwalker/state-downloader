@@ -686,3 +686,6 @@ ACTIVITY: Resolved transient network failures in the cross-region sync engine.
 TIMESTAMP: Thu May 28 12:01:40 UTC 2026
 ACTIVITY: Identified and resolved a critical memory bottleneck in the background service.
 ---
+TIMESTAMP: Thu May 28 16:34:20 UTC 2026
+ACTIVITY: Updated the technical architecture docs to reflect recent infrastructure changes.
+---

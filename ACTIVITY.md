@@ -758,3 +758,6 @@ ACTIVITY: Reduced the baseline memory footprint of worker processes by 15%.
 TIMESTAMP: Sat May 30 18:52:23 UTC 2026
 ACTIVITY: Implemented granular telemetry logging for deep system observability.
 ---
+TIMESTAMP: Sat May 30 19:59:17 UTC 2026
+ACTIVITY: Updated the technical architecture docs to reflect recent infrastructure changes.
+---
